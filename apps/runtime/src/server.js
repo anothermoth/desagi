@@ -10,7 +10,7 @@ const version = getMetaVersion();
 const startedAt = Date.now();
 
 // Provider defaults (config-over-code: AgentSpec can override model/provider later)
-const DEFAULT_XAI_MODEL = process.env.XAI_MODEL || 'grok-beta';
+const DEFAULT_XAI_MODEL = process.env.XAI_MODEL || 'grok-3-mini-fast';
 const xai = new OpenAI({
   apiKey: process.env.XAI_API_KEY,
   baseURL: process.env.XAI_BASE_URL || 'https://api.x.ai/v1',
