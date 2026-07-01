@@ -1,0 +1,16 @@
+{
+  "name": "@desagi/designer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node src/server.js",
+    "build": "echo 'no-build'",
+    "lint": "echo 'no-lint'",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@desagi/spec": "*",
+    "zod": "^3.23.8"
+  }
+}
+

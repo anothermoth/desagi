@@ -1,0 +1,23 @@
+services:
+  runtime:
+    build:
+      context: .
+      dockerfile: apps/runtime/Dockerfile
+    environment:
+      - PORT=3001
+      - XAI_API_KEY=${XAI_API_KEY:-}
+    ports:
+      - "3001:3001"
+
+  designer:
+    build:
+      context: .
+      dockerfile: apps/designer/Dockerfile
+    environment:
+      - PORT=3000
+      - RUNTIME_BASE_URL=http://runtime:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - runtime
+
