@@ -36,12 +36,10 @@ app.post('/v1/spec/validate', async (req, reply) => {
 
 // Placeholder: text chat endpoint (no provider call yet)
 app.post('/v1/chat', async (req) => {
-  return {
-    reply: "Runtime skeleton online. Provider adapters not wired yet.",
-    echo: req.body ?? null,
-  };
+  // MVP placeholder response.
+  // Next: wire provider adapters (xAI default) and AgentBundle loading.
+  return { reply: 'Runtime skeleton online. Provider adapters not wired yet.', echo: req.body ?? null };
 });
 
 const port = Number(process.env.PORT ?? 3001);
 await app.listen({ port, host: '0.0.0.0' });
-
