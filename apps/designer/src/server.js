@@ -39,7 +39,12 @@ const server = http.createServer(async (req, res) => {
         const r = await fetch(`${runtimeBase}/v1/chat`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ message: msg, agentId: specParse.data.agentId }),
+          body: JSON.stringify({
+            message: msg,
+            agentId: specParse.data.agentId,
+            systemPrompt: specParse.data.conversation?.systemPrompt,
+            model: specParse.data.providers?.llm?.model,
+          }),
         });
         const out = await r.json();
         return send(res, 200, { ok: true, runtime: out });
