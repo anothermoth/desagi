@@ -70,6 +70,51 @@ tools:
 
 **Config over code:** to change behavior, update spec (prompts/tools/flows), not runtime code.
 
+### 2.1.1 Tool specs (JSON Schema, OpenAPI-ish)
+Tools are defined with explicit input/output schemas so the runtime can:
+- validate arguments
+- render good admin UX
+- generate stable tool-calling prompts across providers
+
+Example tool (HTTP):
+
+```yaml
+tools:
+  - name: "menu.lookup"
+    kind: "http"
+    description: "Lookup menu items and prices."
+    method: "GET"
+    url: "http://menu-svc/v1/menu"
+    auth:
+      kind: "apiKeyRef"
+      ref: "profiles/owner-demo/menu-svc"
+      in: "header"
+      name: "Authorization"
+    inputSchema:
+      type: object
+      properties:
+        query:
+          type: string
+          description: "User search term like 'pepperoni'"
+      required: [query]
+      additionalProperties: false
+    outputSchema:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              price: { type: number }
+              description: { type: string }
+            required: [name, price]
+            additionalProperties: false
+      required: [items]
+      additionalProperties: false
+```
+
 ### 2.2 Designer vs Runtime
 - **Designer**: creates/edits AgentSpec + assets (voices, prompts, policies). Runs simulations.
 - **Runtime**: loads AgentSpec, exposes conversation endpoints, connects to providers.
@@ -132,7 +177,56 @@ MVP approach:
   1) **Push-to-talk**: client records audio → server STT → LLM → TTS → audio reply
   2) **Realtime**: upgrade to streaming websocket when stable
 
-## 6) “Interactive Help Agent Designer” UX
+### 5.1 Live barge-in (configurable)
+Barge-in should be a first-class runtime feature, controlled per-agent:
+
+```yaml
+realtime:
+  bargeIn:
+    enabled: true
+    mode: "stop"   # stop | duck
+  vad:
+    enabled: true
+    sensitivity: 0.6
+```
+
+Runtime behavior:
+- When the assistant is speaking (audio out) and user speech is detected:
+  - `stop`: cut TTS stream immediately; prioritize user audio
+  - `duck`: reduce assistant gain while user is speaking
+
+## 6) Generic Agent Lifecycle (domain-agnostic)
+Every agent, regardless of domain, follows the same high-level loop:
+
+1) **Session boot**
+   - load AgentBundle (AgentSpec + assets)
+   - initialize provider adapters (LLM/TTS/STT)
+   - initialize tool registry + validators
+   - initialize memory/session state
+
+2) **Ingest user event**
+   - text message OR audio frames
+   - for audio: VAD + partial/final transcript events
+
+3) **Policy pass**
+   - apply PII/minimization rules
+   - escalation triggers
+
+4) **Plan & act**
+   - produce assistant output and/or tool calls
+   - run tools (HTTP initially), validate args/outputs
+   - update structured state (optional)
+
+5) **Respond**
+   - stream text deltas
+   - stream audio deltas (TTS)
+   - respect barge-in behavior
+
+6) **Observe**
+   - event stream + metrics
+   - transcript retention per config
+
+## 7) “Interactive Help Agent Designer” UX
 
 ### 6.1 Admin UI screens (MVP)
 - Agent list
@@ -153,7 +247,7 @@ MVP approach:
 ### 6.2 Iteration loop
 - Change config → simulate → deploy → observe metrics → iterate
 
-## 7) Multi-agent / Shared Info (End goal)
+## 8) Multi-agent / Shared Info (End goal)
 End-state:
 - Many agents deployed for different customers.
 - Shared knowledge patterns:
@@ -161,7 +255,7 @@ End-state:
   - per-agent memory (durable)
   - shared incident / escalation queue
 
-## 8) First Use Case: Owner.com-style Restaurant Agent
+## 9) First Use Case: Owner.com-style Restaurant Agent
 
 ### What we will demo
 - A restaurant answering agent that:
@@ -202,7 +296,18 @@ Later: helm chart for k8s.
 - basic observability (logs, health)
 
 ## 12) Open Questions
+
+## 13) Runtime shapes: A now, easy B later
+### A) Runtime-per-agent (MVP)
+- each agent bundle deployed as its own runtime service
+- simple isolation + simple mental model
+
+### B) Shared runtime pool (later)
+- one runtime hosts many bundles
+- selection by `orgId/agentId/version` per request
+
+Design constraint: keep the **core runtime engine** multi-tenant capable, but wire bundle selection at the edge.
+
 - Exact xAI realtime API surface for audio (websocket vs http) in your account
 - Preferred cluster target (k8s? nomad?)
 - Where durable memory should live in v1 (Redis vs Postgres)
-
