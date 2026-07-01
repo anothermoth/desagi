@@ -11,8 +11,10 @@
   "dependencies": {
     "@desagi/spec": "*",
     "@fastify/cors": "^9.0.1",
+    "@fastify/websocket": "^11.2.0",
     "fastify": "^4.28.1",
     "openai": "^4.104.0",
+    "ws": "^8.21.0",
     "zod": "^3.23.8"
   }
 }

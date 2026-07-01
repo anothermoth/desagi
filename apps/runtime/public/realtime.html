@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>desagi realtime (browser mic) — skeleton</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding: 16px; }
+      button { padding: 10px 14px; margin-right: 8px; }
+      #log { white-space: pre-wrap; background: #111; color: #eee; padding: 12px; border-radius: 8px; height: 340px; overflow: auto; }
+      input { padding: 10px; width: 60%; }
+    </style>
+  </head>
+  <body>
+    <h1>desagi realtime (browser mic) — skeleton</h1>
+    <p>This is a placeholder UI. Next step: stream PCM16 frames + play assistant audio.</p>
+
+    <div>
+      <button id="connectBtn">Connect WS</button>
+      <button id="micBtn" disabled>Start Mic (placeholder)</button>
+    </div>
+
+    <div style="margin-top: 12px;">
+      <input id="text" placeholder="Send a text message over WS" />
+      <button id="sendBtn" disabled>Send</button>
+    </div>
+
+    <h3>Log</h3>
+    <div id="log"></div>
+
+    <script>
+      const logEl = document.getElementById('log');
+      const connectBtn = document.getElementById('connectBtn');
+      const sendBtn = document.getElementById('sendBtn');
+      const micBtn = document.getElementById('micBtn');
+      const textEl = document.getElementById('text');
+      let ws;
+
+      function log(line) {
+        logEl.textContent += line + "\n";
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      connectBtn.onclick = () => {
+        const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/v1/realtime/ws';
+        ws = new WebSocket(url);
+        ws.onopen = () => {
+          log('[ws] open ' + url);
+          sendBtn.disabled = false;
+          micBtn.disabled = false;
+          ws.send(JSON.stringify({ type: 'hello', sampleRate: 48000 }));
+        };
+        ws.onmessage = (e) => log('[ws] ' + e.data);
+        ws.onclose = () => log('[ws] closed');
+        ws.onerror = (e) => log('[ws] error ' + String(e));
+      };
+
+      sendBtn.onclick = () => {
+        const t = textEl.value.trim();
+        if (!t || !ws || ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify({ type: 'text', text: t }));
+        textEl.value = '';
+      };
+
+      micBtn.onclick = async () => {
+        log('[mic] placeholder - next step will stream PCM frames');
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        log('[mic] permission granted');
+      };
+    </script>
+  </body>
+</html>
+

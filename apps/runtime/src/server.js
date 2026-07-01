@@ -2,9 +2,22 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { getMetaVersion, AgentSpec } from '@desagi/spec';
 import OpenAI from 'openai';
+import websocket from '@fastify/websocket';
 
 const app = Fastify({ logger: true });
 await app.register(cors, { origin: true });
+await app.register(websocket);
+
+app.register(async function (app) {
+  // static files (very small MVP)
+  app.get('/realtime', async (req, reply) => {
+    reply.type('text/html');
+    // served via filesystem read to avoid adding deps; fine for MVP.
+    const fs = await import('node:fs/promises');
+    const p = new URL('../public/realtime.html', import.meta.url);
+    return fs.readFile(p, 'utf8');
+  });
+});
 
 const version = getMetaVersion();
 const startedAt = Date.now();
@@ -40,6 +53,54 @@ app.post('/v1/spec/validate', async (req, reply) => {
     return { error: 'invalid_spec', issues: parsed.error.issues };
   }
   return { ok: true };
+});
+
+// Realtime (browser mic) — MVP skeleton
+// Protocol (client -> server):
+//  - { type: 'hello', sampleRate: 48000 }
+//  - { type: 'audio', format: 'pcm16', sampleRate: 16000, dataB64: '...' }
+// Protocol (server -> client):
+//  - { type: 'info' | 'error' | 'assistant_text' | 'assistant_audio' }
+app.get('/v1/realtime/ws', { websocket: true }, (conn, req) => {
+  const ws = conn.socket;
+  ws.send(JSON.stringify({ type: 'info', message: 'realtime ws connected (skeleton)' }));
+
+  ws.on('message', async (buf) => {
+    let msg;
+    try {
+      msg = JSON.parse(buf.toString('utf8'));
+    } catch {
+      ws.send(JSON.stringify({ type: 'error', error: 'bad_json' }));
+      return;
+    }
+
+    // For now, just ack audio frames and allow simple text messages.
+    if (msg?.type === 'audio') {
+      ws.send(JSON.stringify({ type: 'info', message: `audio frame received (${msg.format || 'unknown'})` }));
+      return;
+    }
+
+    if (msg?.type === 'text') {
+      // Use the same xAI text path as /v1/chat (until we wire true xAI realtime audio)
+      try {
+        const resp = await xai.chat.completions.create({
+          model: DEFAULT_XAI_MODEL,
+          messages: [
+            { role: 'system', content: 'You are a helpful assistant.' },
+            { role: 'user', content: String(msg.text ?? '') },
+          ],
+          temperature: 0.3,
+        });
+        ws.send(JSON.stringify({
+          type: 'assistant_text',
+          text: resp.choices?.[0]?.message?.content ?? '',
+        }));
+      } catch (e) {
+        ws.send(JSON.stringify({ type: 'error', error: 'xai_error', message: String(e?.message ?? e) }));
+      }
+      return;
+    }
+  });
 });
 
 // Placeholder: text chat endpoint (no provider call yet)
